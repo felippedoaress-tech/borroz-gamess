@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Borroz Games</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-2: #0b1220;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --accent-2: #38bdf8;
+      --danger: #ef4444;
+      --border: rgba(255, 255, 255, 0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--card-2);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    .brand span { color: var(--accent); }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #052e16;
+      border-color: var(--accent);
+    }
+
+    main {
+      flex: 1;
+      max-width: 760px;
+      width: 100%;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .panel {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .panel.active { display: block; }
+
+    .top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .hud {
+      display: flex;
+      gap: 14px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--accent-2);
+    }
+
+    .btn {
+      background: var(--accent-2);
+      color: #082f49;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: var(--card-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn.flag-on {
+      background: #f59e0b;
+      color: #271500;
+    }
+
+    /* Campo Minado */
+    #mines-board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      max-width: 360px;
+      margin: 12px auto;
+      user-select: none;
+    }
+
+    .cell {
+      aspect-ratio: 1;
+      background: #334155;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .cell.revealed {
+      background: var(--card-2);
+      cursor: default;
+    }
+
+    .cell.mine { background: var(--danger); }
+
+    /* Cobrinha */
+    #snake-canvas {
+      display: block;
+      margin: 10px auto;
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 100%;
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 52px);
+      gap: 6px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .dpad button {
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card-2);
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    /* Reflexo */
+    #reflex-box {
+      height: 230px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: #334155;
+      transition: background 0.15s;
+    }
+
+    #reflex-box.waiting { background: #991b1b; }
+    #reflex-box.ready { background: #15803d; }
+
+    .hint {
+      margin-top: 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">BORROZ <span>GAMES</span></div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="mines">Campo Minado</button>
+      <button class="tab-btn" data-tab="snake">Cobrinha</button>
+      <button class="tab-btn" data-tab="reflex">Reflexo</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- CAMPO MINADO -->
+    <section id="mines" class="panel active">
+      <div class="top-bar">
+        <div class="hud">
+          <span>Minas: <b id="mines-left">10</b></span>
+          <span>Status: <b id="mines-status">Jogando</b></span>
+        </div>
+        <div>
+          <button id="flag-mode-btn" class="btn secondary">Modo Bandeira: OFF</button>
+          <button id="mines-reset" class="btn">Reiniciar</button>
+        </div>
+      </div>
+      <div id="mines-board"></div>
+      <p class="hint">Clique normal abre. Clique direito (ou ative "Modo Bandeira") marca mina.</p>
+    </section>
+
+    <!-- COBRINHA -->
+    <section id="snake" class="panel">
+      <div class="top-bar">
+        <div class="hud">
+          <span>Pontos: <b id="snake-score">0</b></span>
+          <span>Recorde: <b id="snake-best">0</b></span>
+        </div>
+        <button id="snake-reset" class="btn">Novo Jogo</button>
+      </div>
+      <canvas id="snake-canvas" width="360" height="360"></canvas>
+      <div class="dpad">
+        <div></div>
+        <button data-dir="UP">▲</button>
+        <div></div>
+        <button data-dir="LEFT">◀</button>
+        <button data-dir="DOWN">▼</button>
+        <button data-dir="RIGHT">▶</button>
+      </div>
+      <p class="hint">Use as setas do teclado ou os botões acima.</p>
+    </section>
+
+    <!-- REFLEXO -->
+    <section id="reflex" class="panel">
+      <div class="top-bar">
+        <div class="hud">
+          <span>Último: <b id="reflex-last">--</b></span>
+          <span>Melhor: <b id="reflex-best">--</b></span>
+        </div>
+        <button id="reflex-start" class="btn">Iniciar Rodada</button>
+      </div>
+      <div id="reflex-box">Clique em "Iniciar Rodada" para começar</div>
+      <p class="hint">Quando ficar VERDE, clique o mais rápido que conseguir!</p>
+    </section>
+  </main>
+
+  <footer>Borroz Games — Funciona offline em um único arquivo HTML.</footer>
+
+  <script>
+    // Troca de abas
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    // ---------------- CAMPO MINADO ----------------
+    const ROWS = 8, COLS = 8, MINES = 10;
+    const boardEl = document.getElementById("mines-board");
+    const minesLeftEl = document.getElementById("mines-left");
+    const minesStatusEl = document.getElementById("mines-status");
+    const flagBtn = document.getElementById("flag-mode-btn");
+    let grid = [], flagMode = false, gameOver = false;
+
+    flagBtn.addEventListener("click", () => {
+      flagMode = !flagMode;
+      flagBtn.textContent = `Modo Bandeira: ${flagMode ? "ON" : "OFF"}`;
+      flagBtn.classList.toggle("flag-on", flagMode);
+    });
+
+    document.getElementById("mines-reset").addEventListener("click", initMines);
+
+    function initMines() {
+      gameOver = false;
+      minesStatusEl.textContent = "Jogando";
+      minesLeftEl.textContent = MINES;
+      grid = Array.from({ length: ROWS }, (_, r) =>
+        Array.from({ length: COLS }, (_, c) => ({
+          r, c, mine: false, revealed: false, flagged: false, count: 0
+        }))
+      );
+
+      let placed = 0;
+      while (placed < MINES) {
+        const r = Math.floor(Math.random() * ROWS);
+        const c = Math.floor(Math.random() * COLS);
+        if (!grid[r][c].mine) {
+          grid[r][c].mine = true;
+          placed++;
+        }
+      }
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c].mine) continue;
+          let cnt = 0;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && grid[nr][nc].mine) cnt++;
+            }
+          }
+          grid[r][c].count = cnt;
+        }
+      }
+      renderMines();
+    }
+
+    function renderMines() {
+      boardEl.innerHTML = "";
+      let flags = 0;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = grid[r][c];
+          if (cell.flagged) flags++;
+          const btn = document.createElement("button");
+          btn.className = "cell" + (cell.revealed ? " revealed" : "") + (cell.revealed && cell.mine ? " mine" : "");
+          if (cell.revealed) {
+            btn.textContent = cell.mine ? "💣" : (cell.count || "");
+          } else if (cell.flagged) {
+            btn.textContent = "🚩";
+          }
+          btn.addEventListener("click", () => handleCellClick(r, c, flagMode));
+          btn.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            handleCellClick(r, c, true);
+          });
+          boardEl.appendChild(btn);
+        }
+      }
+      minesLeftEl.textContent = Math.max(0, MINES - flags);
+    }
+
+    function revealCell(r, c) {
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+      const cell = grid[r][c];
+      if (cell.revealed || cell.flagged) return;
+      cell.revealed = true;
+      if (cell.count === 0 && !cell.mine) {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) revealCell(r + dr, c + dc);
+        }
+      }
+    }
+
+    function handleCellClick(r, c, asFlag) {
+      if (gameOver) return;
+      const cell = grid[r][c];
+      if (asFlag) {
+        if (!cell.revealed) cell.flagged = !cell.flagged;
+        renderMines();
+        return;
+      }
+      if (cell.flagged || cell.revealed) return;
+
+      if (cell.mine) {
+        gameOver = true;
+        minesStatusEl.textContent = "Boom! Perdeu";
+        grid.flat().forEach((x) => { if (x.mine) x.revealed = true; });
+        renderMines();
+        return;
+      }
+
+      revealCell(r, c);
+      const safeLeft = grid.flat().filter((x) => !x.mine && !x.revealed).length;
+      if (safeLeft === 0) {
+        gameOver = true;
+        minesStatusEl.textContent = "Você venceu!";
+      }
+      renderMines();
+    }
+
+    initMines();
+
+    // ---------------- COBRINHA ----------------
+    const canvas = document.getElementById("snake-canvas");
+    const ctx = canvas.getContext("2d");
+    const box = 20, cells = canvas.width / box;
+    let snake, dir, nextDir, food, score, bestScore = 0, snakeLoop;
+
+    function initSnake() {
+      clearInterval(snakeLoop);
+      snake = [{ x: 8, y: 9 }, { x: 7, y: 9 }];
+      dir = "RIGHT";
+      nextDir = "RIGHT";
+      score = 0;
+      document.getElementById("snake-score").textContent = 0;
+      spawnFood();
+      snakeLoop = setInterval(stepSnake, 130);
+    }
+
+    function spawnFood() {
+      food = {
+        x: Math.floor(Math.random() * cells),
+        y: Math.floor(Math.random() * cells)
+      };
+    }
+
+    function setDir(d) {
+      const opp = { UP: "DOWN", DOWN: "UP", LEFT: "RIGHT", RIGHT: "LEFT" };
+      if (opp[d] !== dir) nextDir = d;
+    }
+
+    document.addEventListener("keydown", (e) => {
+      const map = { ArrowUp: "UP", ArrowDown: "DOWN", ArrowLeft: "LEFT", ArrowRight: "RIGHT" };
+      if (map[e.key]) {
+        if (document.getElementById("snake").classList.contains("active")) e.preventDefault();
+        setDir(map[e.key]);
+      }
+    });
+
+    document.querySelectorAll(".dpad button").forEach((b) => {
+      b.addEventListener("click", () => setDir(b.dataset.dir));
+    });
+
+    document.getElementById("snake-reset").addEventListener("click", initSnake);
+
+    function stepSnake() {
+      dir = nextDir;
+      const head = { ...snake[0] };
+      if (dir === "UP") head.y--;
+      if (dir === "DOWN") head.y++;
+      if (dir === "LEFT") head.x--;
+      if (dir === "RIGHT") head.x++;
+
+      const hitWall = head.x < 0 || head.x >= cells || head.y < 0 || head.y >= cells;
+      const hitSelf = snake.some((seg) => seg.x === head.x && seg.y === head.y);
+      if (hitWall || hitSelf) {
+        clearInterval(snakeLoop);
+        ctx.fillStyle = "rgba(15,23,42,0.75)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 20px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText("Fim de jogo! Clique em Novo Jogo", canvas.width / 2, canvas.height / 2);
+        return;
+      }
+
+      snake.unshift(head);
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        document.getElementById("snake-score").textContent = score;
+        if (score > bestScore) {
+          bestScore = score;
+          document.getElementById("snake-best").textContent = bestScore;
+        }
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ef4444";
+      ctx.fillRect(food.x * box + 2, food.y * box + 2, box - 4, box - 4);
+
+      snake.forEach((seg, idx) => {
+        ctx.fillStyle = idx === 0 ? "#22c55e" : "#4ade80";
+        ctx.fillRect(seg.x * box + 1, seg.y * box + 1, box - 2, box - 2);
+      });
+    }
+
+    initSnake();
+
+    // ---------------- REFLEXO ----------------
+    const reflexBox = document.getElementById("reflex-box");
+    const reflexLast = document.getElementById("reflex-last");
+    const reflexBest = document.getElementById("reflex-best");
+    let reflexState = "idle", timerId = null, startTime = 0, bestMs = null;
+
+    function startReflex() {
+      clearTimeout(timerId);
+      reflexState = "waiting";
+      reflexBox.className = "waiting";
+      reflexBox.textContent = "Espere ficar VERDE...";
+      const delay = 1000 + Math.random() * 2500;
+      timerId = setTimeout(() => {
+        reflexState = "ready";
+        reflexBox.className = "ready";
+        reflexBox.textContent = "CLIQUE AGORA!";
+        startTime = performance.now();
+      }, delay);
+    }
+
+    document.getElementById("reflex-start").addEventListener("click", startReflex);
+
+    reflexBox.addEventListener("click", () => {
+      if (reflexState === "waiting") {
+        clearTimeout(timerId);
+        reflexState = "idle";
+        reflexBox.className = "";
+        reflexBox.textContent = "Cedo demais! Clique em 'Iniciar Rodada'.";
+      } else if (reflexState === "ready") {
+        const ms = Math.round(performance.now() - startTime);
+        reflexState = "idle";
+        reflexBox.className = "";
+        reflexBox.textContent = `${ms} ms! Clique em 'Iniciar Rodada' para ir de novo.`;
+        reflexLast.textContent = `${ms} ms`;
+        if (bestMs === null || ms < bestMs) {
+          bestMs = ms;
+          reflexBest.textContent = `${bestMs} ms`;
+        }
+      }
+    });
+  </script>
+</body>
+</html>
